@@ -10,7 +10,6 @@
     }
   },
   "require": {
-    "minicli/minicli": "^2.0",
-    "ext-http": "*"
+    "minicli/minicli": "^2.0"
   }
 }

@@ -25,18 +25,23 @@ class DefaultController extends CommandController
 
 	protected float $step;
 
+	protected int $nLayers;
+
 
 	#[NoReturn] public function handle()
 	{
 		if (!$this->hasParam('dir')) {
-			$this->getPrinter()
-			     ->success('csv dir="dir" [out][offrow][buflen][step]');
+			$this->getPrinter()->success("uso: > php minicli csv dir=\"dir\"" .
+			                             "\n[out='nombre archivo salida sin extension'] => OUT_YYYYMMDD_HHMMSS.csv" .
+			                             "\n[offrow='fila para el cálculo del offset inicial'] => 2000" .
+			                             "\n[buflen='cantidad de filas a promediar'] => 10" .
+			                             "\n[step='periodo de muestreo'] => 0.002");
 			exit();
 		}
 
 		$name = $this->getParam('dir');
 
-		$this->outFName = $this->getParam('out') ?? 'T0';
+		$this->outFName = $this->getParam('out') ?? '';
 
 		$this->offsetRow = $this->getParam('offrow') ?? 2000;
 
@@ -64,6 +69,10 @@ class DefaultController extends CommandController
 			exit();
 		}
 
+		// ASIGNAR OUT FILENAME POR DEFAULT
+		if ($this->outFName == '') $this->outFName =
+			'OUT_' . substr($this->middle, 1);
+
 		$this->getPrinter()->success("Serie a procesar: [" .
 		                             substr($this->middle, 1) . "]");
 
@@ -74,21 +83,28 @@ class DefaultController extends CommandController
 			exit();
 		}
 
-		//$f = fopen($this->first, 'r');
+		// NUMERO DE LAYERS
+		for ($layer = 0; ; $layer++) {
+			if (!file_exists($this->getFullName("d{$layer}{$this->middle}.csv"))) {
+				$this->nLayers = $layer;
+				$this->getPrinter()->info("nLayers = {$this->nLayers}", true);
+				break;
+			}
+		}
 
 		// ABRIR ARCHIVOS DE SALIDA
 		$o = [];
-		for ($layer = 0; $layer <= 3; $layer++) {
+		for ($layer = 0; $layer < $this->nLayers; $layer++) {
 			$o[$layer] = fopen($this->getFullName("d{$layer}_out.csv"), 'a');
 			ftruncate($o[$layer], 0);
 		}
 
 		// COMPILAR TODOS LOS SEGMENTOS DE TODOS LOS LAYERS
-		for ($layer = 0; $layer <= 3; $layer++) {
+		for ($layer = 0; $layer < $this->nLayers; $layer++) {
 			$this->processSegments($layer, $o[$layer]);
 		}
 
-		$this->getPrinter()->display('<< Offsets >>');
+		$this->getPrinter()->info('<< Offsets >>', true);
 		$this->getPrinter()->display(implode(',', $this->offsets));
 
 		/////////////////////////////////////////
@@ -101,8 +117,8 @@ class DefaultController extends CommandController
 		fputs($t, "sep=,\n");
 		fputcsv($t, $this->headers);
 
-		// ABRIR 4 ARCHIVOS DE ENTRADA
-		for ($n = 0; $n <= 3; $n++) {
+		// ABRIR nLayers ARCHIVOS DE ENTRADA
+		for ($n = 0; $n < $this->nLayers; $n++) {
 			$o[$n] = fopen($this->getFullName("d{$n}_out.csv"), 'r');
 		}
 
@@ -115,12 +131,11 @@ class DefaultController extends CommandController
 
 		fclose($t);
 
-		$this->getPrinter()->success('---------------------------------');
-		$this->getPrinter()->display("Output file: $this->outFName.csv");
-		$this->getPrinter()->success('---------------------------------');
+		$this->getPrinter()
+		     ->success(" Output file: $this->outFName.csv ", true);
 	}
 
-	public function findMiddle(): bool|string
+	protected function findMiddle(): bool|string
 	{
 		while (false !== ($entry = $this->d->read())) {
 			if (is_dir($entry)) continue;
@@ -129,7 +144,7 @@ class DefaultController extends CommandController
 		return false;
 	}
 
-	public function findFirst(): bool
+	protected function findFirst(): bool
 	{
 		$first = 'd0' . $this->middle . '.csv';
 
@@ -144,14 +159,12 @@ class DefaultController extends CommandController
 		return false;
 	}
 
-	public function getFullName($name): string
+	protected function getFullName($name): string
 	{
 		return $this->d->path . '/' . $name;
 	}
 
-
-
-	public function processSegments(int $layer, $outputFile)
+	protected function processSegments(int $layer, $outputFile)
 	{
 		// POR CADA SEGMENTO...
 		for ($segment = 1; ; $segment++) {
@@ -162,51 +175,81 @@ class DefaultController extends CommandController
 			$this->getPrinter()->display("Procesando segmento $fname...");
 
 			// PROCESAR UN SEGMENTO
-			if (file_exists($fname)) {
-				$f = fopen($fname, 'r');
+			if (!file_exists($fname)) return;  // PASAR AL SIGUIENTE LAYER
 
-				// HEADERS
-				$h = fgetcsv($f);
-				if ($segment == 1) {
-					if ($layer > 0) {
-						array_shift($h);
-					}
-					$this->headers = array_merge($this->headers, $h);
+			$f = fopen($fname, 'r');
+
+			// HEADERS
+			$h = fgetcsv($f);
+			if ($segment == 1) {
+				if ($layer > 0) {
+					array_shift($h);
 				}
-				$this->headers = array_map(function ($a) {
-					return substr($a,
-						0,
-						strpos($a, '(') > 0 ? strpos($a, '(') - 1 : null);
-				},
-					$this->headers);
+				$this->headers = array_merge($this->headers, $h);
+			}
+			$this->headers = array_map(function ($a) {
+				return substr($a,
+					0,
+					strpos($a, '(') > 0 ? strpos($a, '(') - 1 : null);
+			},
+				$this->headers);
+			$this->headers[0] = 't[s]';
 
-				$this->headers[0] = 't[s]';
-
-				// PROCESAR LINEAS
-				$offset = $this->process($f, $outputFile);
-				if ($segment == 1) {
-					if ($layer == 0) {
-						$offset[0] = 0;
-					} else {
-						array_shift($offset);
-					}
-					$this->offsets = array_merge($this->offsets, $offset);
+			// PROCESAR LINEAS
+			$offset = $this->processLines($f, $outputFile);
+			if ($segment == 1) {
+				if ($layer == 0) {
+					$offset[0] = 0;
+				} else {
+					array_shift($offset);
 				}
-
-			} else {
-
-				// NO HAY MAS SEGMENTOS en el LAYER
-				return;  // PASAR AL SIGUIENTE LAYER
+				$this->offsets = array_merge($this->offsets, $offset);
 			}
 		}
 	}
 
+	protected function mergeHorizontal(array $inputFiles, $outputFile): int|bool
+	{
+		static $nline = 0;
 
+		// LEER LINEAS CORRESPONDIENTES DE LOS 4 LAYERS Y UNIRLAS
+		if (!($line = $this->mergeLines($inputFiles))) {
+			return false;  // no hay más líneas en alguno de los layers
+		}
 
-	public function mergeLines(array $inputFiles): array|bool
+		// RESTAR OFFSETS
+		$line1 = $this->offsetRecord($line);
+
+		// APLICAR MEDIA MOVIL
+		$line2 = $this->noiseReduction($line1);
+
+		// Imprimir la línea final
+		fputcsv($outputFile, $line2);
+
+		return ++$nline;
+	}
+
+	protected function processLines($f, $o): array
+	{
+		$offsets = [];
+
+		$i = 0;
+
+		while ($line = fgetcsv($f)) {
+			if ($i == $this->offsetRow) {
+				$offsets = $line;
+			}
+			++$i;
+			fputcsv($o, $line);
+		}
+
+		return $offsets;
+	}
+
+	protected function mergeLines(array $inputFiles): array|bool
 	{
 		$l = [];
-		for ($layer = 0; $layer <= 3; $layer++) {
+		for ($layer = 0; $layer < $this->nLayers; $layer++) {
 			if (!($l[$layer] = fgetcsv($inputFiles[$layer]))) {
 				return false;
 			}
@@ -220,16 +263,15 @@ class DefaultController extends CommandController
 			}
 		}
 
-		// UNIR LAS 4 LINEAS LEIDAS
-		return array_merge($l[0],
-			$l[1],
-			$l[2],
-			$l[3]);
+		$merged = $l[0];
+		for ($layer = 1; $layer < $this->nLayers; $layer++) {
+			// UNIR LAS LINEAS LEIDAS
+			$merged =  array_merge($merged , $l[$layer]);
+		}
+		return $merged;
 	}
 
-
-
-	public function offsetRecord(bool|array $line): array
+	protected function offsetRecord(bool|array $line): array
 	{
 		return array_map(function ($a, $b) {
 			return $a - $b;
@@ -238,7 +280,7 @@ class DefaultController extends CommandController
 			$this->offsets);
 	}
 
-	public function noiseReduction(array $line1): array
+	protected function noiseReduction(array $line1): array
 	{
 		// Inicializar un buffer para el cálculo de medias móviles.
 		$buffer = [];
@@ -261,43 +303,5 @@ class DefaultController extends CommandController
 		// La columna del tiempo no debe promediarse
 		$line2[0] = $line1[0];
 		return $line2;
-	}
-
-	public function process($f, $o): array
-	{
-		$offsets = [];
-
-		$i = 0;
-
-		while ($line = fgetcsv($f)) {
-			if ($i == $this->offsetRow) {
-				$offsets = $line;
-			}
-			++$i;
-			fputcsv($o, $line);
-		}
-
-		return $offsets;
-	}
-
-	public function mergeHorizontal(array $inputFiles, $outputFile): int|bool
-	{
-		static $nline = 0;
-
-		// LEER LINEAS CORRESPONDIENTES DE LOS 4 LAYERS Y UNIRLAS
-		if (!($line = $this->mergeLines($inputFiles))) {
-			return false;  // no hay más líneas en alguno de los layers
-		}
-
-		// RESTAR OFFSETS
-		$line1 = $this->offsetRecord($line);
-
-		// APLICAR MEDIA MOVIL
-		$line2 = $this->noiseReduction($line1);
-
-		// Imprimir la línea final
-		fputcsv($outputFile, $line2);
-
-		return ++$nline;
 	}
 }
