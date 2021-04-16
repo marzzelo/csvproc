@@ -7,53 +7,37 @@ Electronic Industries.
 
 ## Instalación
 
-Es necesario contar con `php-cli` y [Composer](https://getcomposer.org/) para comenzar.
+Es necesario contar con `php-cli`, `git` y [Composer](https://getcomposer.org/) para comenzar.
 
-Crear un nuevo proyecto:
-
-```
-composer create-project --prefer-dist minicli/application myapp
-```
-
-Once the installation is finished, you can run `minicli` it with:
+Descargar el programa desde GitHub:
 
 ```
-cd myapp
-./minicli
+c:/> git clone https://github.com/marzzelo/csvproc.git
+c:/> cd csvproc
 ```
 
-This will show you the default app signature:
+Una vez descargado el programa, deberán instalarse las dependencias mediante Composer: 
 
 ```
-usage: ./minicli help
+c:/csvproc> composer install
+No lock file found. Updating dependencies instead of installing from lock file...
+Loading composer repositories with package information...
 ```
 
-The default `help` command that comes with minicli (`app/Command/Help/DefaultController.php`) auto-generates a tree of available commands:
+Probar la correcta instalación del programa mediante el siguiente comando:
 
 ```
-./minicli help
+c:/csvproc> php proc csv
+
+uso: > php proc csv dir="dir"                                       
+[out='nombre archivo salida sin extension'] => OUT_YYYYMMDD_HHMMSS  
+[offrow='fila para el cálculo del offset inicial'] => 2000          
+[buflen='cantidad de filas a promediar'] => 10                      
+[step='periodo de muestreo'] => 0.002                               
 ```
 
-```
-Available Commands
-
-help
-└──test
+Para procesar un directorio de datos (ej: c:/data/Test01/) ingresar el siguiente comando:
 
 ```
-
-The `help test` command, defined in `app/Command/Help/TestController.php`, shows an echo test of parameters:
-
-```
-./minicli help test user=erika name=value
-```
-
-```
-Hello, erika!
-
-Array
-(
-    [user] => erika
-    [name] => value
-)
+c:/csvproc/> php proc csv dir="c:/data/Test01" out="test01" offrow="5" step="0.1"
 ```

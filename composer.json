@@ -3,7 +3,7 @@
   "description": "Utilitario para el post-procesamiento de datos generados por UEILogger",
   "license": "MIT",
   "homepage": "https://github.com/marzzelo/csvproc",
-  "keywords": ["cli","command-line", "utility"],
+  "keywords": ["cli","command-line","utility"],
   "authors": [
     {
       "name": "Marcelo Valdez",

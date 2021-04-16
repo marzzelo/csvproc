@@ -2,6 +2,7 @@
 
 namespace App\Command\Csv;
 
+use Minicli\App;
 use JetBrains\PhpStorm\NoReturn;
 use Minicli\Command\CommandController;
 
@@ -27,15 +28,27 @@ class DefaultController extends CommandController
 
 	protected int $nLayers;
 
+	protected array $buffer = [];
+
+	protected bool $doTare;
+
+
+	public function boot(App $app)
+	{
+		parent::boot($app);
+		$this->command_map = $app->command_registry->getCommandMap();
+	}
+
 
 	#[NoReturn] public function handle()
 	{
 		if (!$this->hasParam('dir')) {
-			$this->getPrinter()->success("uso: > php proc csv dir=\"dir\"" .
-			                             "\n[out='nombre archivo salida sin extension'] => OUT_YYYYMMDD_HHMMSS.csv" .
+			$this->getPrinter()->display("uso: > php proc csv dir=\"dir\"" .
+			                             "\n[out='nombre archivo salida sin extension'] => OUT_YYYYMMDD_HHMMSS" .
 			                             "\n[offrow='fila para el cálculo del offset inicial'] => 2000" .
 			                             "\n[buflen='cantidad de filas a promediar'] => 10" .
-			                             "\n[step='periodo de muestreo'] => 0.002");
+			                             "\n[step='periodo de muestreo'] => 0.002" .
+										 "\n[--nofilter] [--nooffset] [--raw]");
 			exit();
 		}
 
@@ -46,6 +59,10 @@ class DefaultController extends CommandController
 		$this->offsetRow = $this->getParam('offrow') ?? 2000;
 
 		$this->buffLen = $this->getParam('buflen') ?? 10;
+
+		if ($this->hasFlag('--nofilter') || $this->hasFlag('--raw') ) $this->buffLen = 0;
+
+		$this->doTare = !$this->hasFlag('--nooffset') && !$this->hasFlag('--raw') ;
 
 		$this->step =
 			$this->getParam('step') ?? 0.002;  // sampling period in seconds
@@ -135,8 +152,10 @@ class DefaultController extends CommandController
 		     ->success(" Output file: $this->outFName.csv ", true);
 	}
 
-	protected function findMiddle(): bool|string
+	protected function findMiddle()
 	{
+		$this->d->rewind();
+
 		while (false !== ($entry = $this->d->read())) {
 			if (is_dir($entry)) continue;
 			return substr(basename($entry, 'csv'), 2, 16);
@@ -147,6 +166,8 @@ class DefaultController extends CommandController
 	protected function findFirst(): bool
 	{
 		$first = 'd0' . $this->middle . '.csv';
+
+		$this->d->rewind();
 
 		while (false !== ($entry = $this->d->read())) {
 			if (is_dir($entry)) continue;
@@ -168,14 +189,14 @@ class DefaultController extends CommandController
 	{
 		// POR CADA SEGMENTO...
 		for ($segment = 1; ; $segment++) {
+
 			// El primer archivo no lleva indicador de orden (n)
 			$trail = ($segment > 1) ? "($segment)" : "";
 			$fname = $this->getFullName("d{$layer}{$this->middle}{$trail}.csv");
 
-			$this->getPrinter()->display("Procesando segmento $fname...");
-
 			// PROCESAR UN SEGMENTO
 			if (!file_exists($fname)) return;  // PASAR AL SIGUIENTE LAYER
+			$this->getPrinter()->display("Procesando segmento $fname...");
 
 			$f = fopen($fname, 'r');
 
@@ -208,7 +229,7 @@ class DefaultController extends CommandController
 		}
 	}
 
-	protected function mergeHorizontal(array $inputFiles, $outputFile): int|bool
+	protected function mergeHorizontal(array $inputFiles, $outputFile)
 	{
 		static $nline = 0;
 
@@ -246,7 +267,7 @@ class DefaultController extends CommandController
 		return $offsets;
 	}
 
-	protected function mergeLines(array $inputFiles): array|bool
+	protected function mergeLines(array $inputFiles)
 	{
 		$l = [];
 		for ($layer = 0; $layer < $this->nLayers; $layer++) {
@@ -271,37 +292,37 @@ class DefaultController extends CommandController
 		return $merged;
 	}
 
-	protected function offsetRecord(bool|array $line): array
+	protected function offsetRecord(array $line): array
 	{
-		return array_map(function ($a, $b) {
-			return $a - $b;
-		},
-			$line,
-			$this->offsets);
+		return $this->doTare ?
+			array_map(function ($a, $b) { return $a - $b;}, $line, $this->offsets)
+			: $line;
 	}
 
 	protected function noiseReduction(array $line1): array
 	{
-		// Inicializar un buffer para el cálculo de medias móviles.
-		$buffer = [];
+		if ($this->buffLen == 0)
+			return $line1;
+
 		// AGREGAR LA LINEA AL BUFFER DE FILTRADO
-		array_push($buffer, $line1);
+		array_push($this->buffer, $line1);
 
 		// QUITAR LA LINEA MÁS ANTIGUA
-		if (($bufflen = count($buffer)) > $this->buffLen) {
-			array_shift($buffer);
+		if (($bufflen = count($this->buffer)) > $this->buffLen) {
+			array_shift($this->buffer);
 		}
 
 		// PROMEDIAR LAS COLUMNAS
 		$line2 = [];
 		foreach ($line1 as $row => $value) {
 			$line2[$row] =
-				number_format(array_sum(array_column($buffer, $row)) / $bufflen,
-					6);
+				number_format(array_sum(array_column($this->buffer, $row)) / $bufflen,
+					7);
 		}
 
 		// La columna del tiempo no debe promediarse
 		$line2[0] = $line1[0];
+
 		return $line2;
 	}
 }
