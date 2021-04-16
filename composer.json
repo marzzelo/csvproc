@@ -1,15 +1,22 @@
 {
-  "name": "minicli/application",
-  "description": "Minicli Application Template",
+  "name": "proc/application",
+  "description": "Utilitario para el post-procesamiento de datos generados por UEILogger",
   "license": "MIT",
-  "homepage": "https://github.com/minicli/application",
-  "keywords": ["cli","command-line", "template"],
+  "homepage": "https://github.com/marzzelo/csvproc",
+  "keywords": ["cli","command-line", "utility"],
+  "authors": [
+    {
+      "name": "Marcelo Valdez",
+      "email": "mvaldez@live.com.ar"
+    }
+  ],
   "autoload": {
     "psr-4": {
       "App\\": "app/"
     }
   },
   "require": {
+    "php": ">=7.4",
     "minicli/minicli": "^2.0"
   }
 }

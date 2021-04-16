@@ -1,21 +1,15 @@
-# minicli
+# csvproc
 
-[Minicli](https://github.com/minicli/minicli) is an experimental dependency-free toolkit for building CLI-only applications in PHP created by @erikaheidi.
-This repository is a template you can use to create a new application that has a single dependency: `minicli/minicli`.
-
-### Why minicli
-
-The current trend in software development is basing your project on a big pile of unknowns. There is nothing wrong in using third party software, but if more than 80% of your application is out of your control, things can get messy.
-What usually happens is that you don't even know what packages you're depending on, when using the most popular frameworks.
-
-Minicli was created as [an educational experiment](https://dev.to/erikaheidi/bootstrapping-a-cli-php-application-in-vanilla-php-4ee) and a way to go dependency-free when building simple command-line applications in PHP. It can be used for microservices, personal dev tools, bots and little fun things.
+[Csvproc](https://github.com/marzzelo/csvproc) es un utilitario creado para el 
+post-procesamiento de los datos en formato CSV generados por la aplicación UEILogger de United
+Electronic Industries.
 
 
-## Getting Started
+## Instalación
 
-You'll need `php-cli` and [Composer](https://getcomposer.org/) to get started.
+Es necesario contar con `php-cli` y [Composer](https://getcomposer.org/) para comenzar.
 
-Create a new project with:
+Crear un nuevo proyecto:
 
 ```
 composer create-project --prefer-dist minicli/application myapp
@@ -63,36 +57,3 @@ Array
     [name] => value
 )
 ```
-
-### The simplest app
-
-The simplest minicli script doesn't require using Command Controllers at all. You can delete the `app` folder and use `registerCommand` with an anonymous function, like this:
-
-```
-#!/usr/bin/php
-<?php
-
-if (php_sapi_name() !== 'cli') {
-    exit;
-}
-
-require __DIR__ . '/vendor/autoload.php';
-
-use Minicli\App;
-use Minicli\Command\CommandCall;
-
-$app = new App();
-$app->setSignature('./minicli mycommand');
-
-$app->registerCommand('mycommand', function(CommandCall $input) {
-    echo "My Command!";
-
-    var_dump($input);
-});
-
-$app->runCommand($argv);
-```
-
-## Created with Minicli
-
-- [Dolphin](https://github.com/do-community/dolphin) - a CLI tool for managing DigitalOcean servers with Ansible.

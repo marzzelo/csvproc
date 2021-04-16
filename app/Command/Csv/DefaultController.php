@@ -31,7 +31,7 @@ class DefaultController extends CommandController
 	#[NoReturn] public function handle()
 	{
 		if (!$this->hasParam('dir')) {
-			$this->getPrinter()->success("uso: > php minicli csv dir=\"dir\"" .
+			$this->getPrinter()->success("uso: > php proc csv dir=\"dir\"" .
 			                             "\n[out='nombre archivo salida sin extension'] => OUT_YYYYMMDD_HHMMSS.csv" .
 			                             "\n[offrow='fila para el cálculo del offset inicial'] => 2000" .
 			                             "\n[buflen='cantidad de filas a promediar'] => 10" .
