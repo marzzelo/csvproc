@@ -1,5 +1,5 @@
 {
-  "name": "proc/application",
+  "name": "marzzelo/csvproc",
   "description": "Utilitario para el post-procesamiento de datos generados por UEILogger",
   "license": "MIT",
   "homepage": "https://github.com/marzzelo/csvproc",
