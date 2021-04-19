@@ -35,28 +35,23 @@ class DefaultController extends CommandController
 
 			$table = new TableHelper();
 			$table->addHeader(['Param/Flag', 'Definition', 'Default Value']);
-			$table->addRow([
-				'<dir="folder">',
-				"Directorio a procesar",
-				'no default, required parameter',
-			]);
-			$table->addRow([
-				'[out="name"]',
-				"Nombre archivo salida sin extension",
-				'OUT_YYYYMMDD_ HMMSS',
-			]);
+			$table->addRow(['<dir="folder">', "Directorio a procesar", 'no default, required parameter',]);
+			$table->addRow(['[sep="separator"]', "comma|tab|semicolon", "comma",]);
 
-			$this->getPrinter()->newline();
+			$this->getPrinter()
+			     ->newline();
 			$this->getPrinter()
 			     ->rawOutput($table->getFormattedTable(new ColorOutputFilter()));
-			$this->getPrinter()->newline();
+			$this->getPrinter()
+			     ->newline();
 
 			exit();
 		}
 
 		$dir = $this->getParam('dir');
 		if (!is_dir($dir)) {
-			$this->getPrinter()->error("$dir No es un directorio.");
+			$this->getPrinter()
+			     ->error("$dir No es un directorio.");
 			exit();
 		}
 
@@ -66,17 +61,28 @@ class DefaultController extends CommandController
 		$nfiles = 0;
 		$nAlready = 0;
 
-		$newHeader = "sep=,\n";
+		// POSIBLES VALORES PARA sep
+		$seps = ['comma' => ',', 'tab' => "\t", 'semicolon' => ';'];
+
+		// ASIGNAR SEPARADOR
+		if (isset($seps[$this->getParam('sep')])) {
+			$separator = $seps[$this->getParam('sep') ?? 'comma'];
+			$newHeader = "sep=$separator\n";
+		} else {
+			$this->getPrinter()
+			     ->error("Separador no soportado.");
+			exit();
+		}
 
 		while ($f = $this->util->nextFileName()) {
 
-			if ($this->util->is_dir($f))
-				continue;
+			if ($this->util->is_dir($f)) continue;
 
 			echo "\n--> $f";
 
 			if ($this->util->getHeadersString($f) == $newHeader) {
-				$this->getPrinter()->error("{$this->util->fullName($f)} already has the header");
+				$this->getPrinter()
+				     ->error("$f already has the header - Skipped");
 				++$nAlready;
 				continue;
 			}
@@ -85,12 +91,14 @@ class DefaultController extends CommandController
 				echo "\nCan't process {$this->util->fullName($f)} file";
 			}
 
-			$this->getPrinter()->success("done.");
+			$this->getPrinter()
+			     ->success("done.");
 			++$nfiles;
 
 		}
 
-		$this->getPrinter()->success("$nfiles files headered, $nAlready files skipped", 1);
+		$this->getPrinter()
+		     ->success("$nfiles files headered, $nAlready files skipped", 1);
 	}
 
 
