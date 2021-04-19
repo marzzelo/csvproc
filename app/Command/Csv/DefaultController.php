@@ -5,6 +5,8 @@ namespace App\Command\Csv;
 use Minicli\App;
 use JetBrains\PhpStorm\NoReturn;
 use Minicli\Command\CommandController;
+use Minicli\Output\Helper\TableHelper;
+use Minicli\Output\Filter\ColorOutputFilter;
 
 class DefaultController extends CommandController
 {
@@ -32,6 +34,7 @@ class DefaultController extends CommandController
 
 	protected bool $doTare;
 
+	protected bool  $verbose = false;
 
 	public function boot(App $app)
 	{
@@ -43,16 +46,34 @@ class DefaultController extends CommandController
 	#[NoReturn] public function handle()
 	{
 		if (!$this->hasParam('dir')) {
-			$this->getPrinter()->display("uso: > php proc csv dir=\"dir\"" .
-			                             "\n[out='nombre archivo salida sin extension'] => OUT_YYYYMMDD_HHMMSS" .
-			                             "\n[offrow='fila para el cálculo del offset inicial'] => 2000" .
-			                             "\n[buflen='cantidad de filas a promediar'] => 10" .
-			                             "\n[step='periodo de muestreo'] => 0.002" .
-										 "\n[--nofilter] [--nooffset] [--raw]");
+			$this->getPrinter()->info("---------- UEI CSV Post Processor ----------", true);
+
+			$table = new TableHelper();
+			$table->addHeader(['Param/Flag', 'Definition', 'Default Value']);
+			$table->addRow(['<dir="folder">', "Directorio a procesar", 'no default, required parameter']);
+			$table->addRow(['[out="name"]', "Nombre archivo salida sin extension", 'OUT_YYYYMMDD_ HMMSS']);
+			$table->addRow(['[offrow="row#"]', "Fila para el calculo del offset", '2000']);
+			$table->addRow(['[buflen="buff-length"]', "cantidad de filas a promediar", '10']);
+			$table->addRow(['[step="period"]', "periodo de muestreo [s]", '0.002']);
+			$table->addRow(['[--nofilter]', "No aplicar filtro de reducción de ruido", '']);
+			$table->addRow(['[--nooffset]', "No aplicar corrección de offsets", '']);
+			$table->addRow(['[--raw]', "Sólo compilar los archivos", '']);
+			$table->addRow(['[--verbose]', "Imprimir mensajes de estado del proceso", '']);
+
+			$this->getPrinter()->newline();
+			$this->getPrinter()->rawOutput($table->getFormattedTable(new ColorOutputFilter()));
+			$this->getPrinter()->newline();
+
 			exit();
 		}
 
-		$name = $this->getParam('dir');
+		if($this->verbose) print_r($this->getParams());
+
+		$dir = $this->getParam('dir');
+		if (!is_dir($dir)) {
+			$this->getPrinter()->error("$dir No es un directorio.");
+			exit();
+		}
 
 		$this->outFName = $this->getParam('out') ?? '';
 
@@ -69,13 +90,8 @@ class DefaultController extends CommandController
 
 		$this->getPrinter()->success(sprintf("\nDir: %s", $name));
 
-		// print_r($this->getParams());
 
-		$dir = $this->getParam('dir');
-		if (!is_dir($dir)) {
-			$this->getPrinter()->error("$dir No es un directorio.");
-			exit();
-		}
+
 
 		// ABRIR EL DIRECTORIO
 		$this->d = dir($dir);
