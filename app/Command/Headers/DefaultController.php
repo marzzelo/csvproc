@@ -13,9 +13,8 @@ use Minicli\Output\Filter\ColorOutputFilter;
 
 class DefaultController extends CommandController
 {
-	private CsvUtil $util;
 
-	public function boot(App $app)
+    public function boot(App $app)
 	{
 		parent::boot($app);
 		$this->command_map = $app->command_registry->getCommandMap();
@@ -27,7 +26,7 @@ class DefaultController extends CommandController
 	 */
 	#[NoReturn] public function handle()
 	{
-		$this->util = new CsvUtil();
+		$util = new CsvUtil();
 
 		if (!$this->hasParam('dir')) {
 			$this->getPrinter()
@@ -56,7 +55,7 @@ class DefaultController extends CommandController
 		}
 
 		// ABRIR EL DIRECTORIO
-		$this->util->setD(dir($dir));
+		$util->setD(dir($dir));
 
 		$nfiles = 0;
 		$nAlready = 0;
@@ -74,21 +73,21 @@ class DefaultController extends CommandController
 			exit();
 		}
 
-		while ($f = $this->util->nextFileName()) {
+		while ($f = $util->nextFileName()) {
 
-			if ($this->util->is_dir($f)) continue;
+			if ($util->is_dir($f)) continue;
 
 			echo "\n--> $f";
 
-			if ($this->util->getHeadersString($f) == $newHeader) {
+			if ($util->getHeadersString($f) == $newHeader) {
 				$this->getPrinter()
 				     ->error("$f already has the header - Skipped");
 				++$nAlready;
 				continue;
 			}
 
-			if (!$this->util->prepend($newHeader, $this->util->fullName($f))) {
-				echo "\nCan't process {$this->util->fullName($f)} file";
+			if (!$util->prepend($newHeader, $util->fullName($f))) {
+				echo "\nCan't process {$util->fullName($f)} file";
 			}
 
 			$this->getPrinter()
