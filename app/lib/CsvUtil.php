@@ -24,6 +24,10 @@ class CsvUtil
         return $this;
     }
 
+    /**
+     * Inserta una línea de texto al comienzo de un archivo.
+     * Utiliza streams para optimizar el uso de memoria con archivos grandes.
+     */
     public function prepend($string, $filename): bool {
         $context = stream_context_create();
         $orig_file = fopen($filename, 'r', false, $context);
@@ -40,16 +44,17 @@ class CsvUtil
     }
 
     /**
+     * Devuelve la primera línea de un archivo como string o como array
      * @throws \Exception
      */
-    public function getHeadersString(string $fname, bool $asArray = false) {
+    public function getHeadersString(string $fname, bool $asArray = false): bool|array|string {
         $f = $this->fullName($fname);
-        $handler = fopen($f, 'r');
-        $headers = fgets($handler);
+        $headers = fgets(fopen($f, 'r'));
         return $asArray ? str_getcsv($headers) : $headers;
     }
 
     /**
+     * Devuelve el nombre completo del archivo, incluyendo el path
      * @throws \Exception
      */
     public function fullName($f): string {
@@ -59,15 +64,19 @@ class CsvUtil
         return $this->d->path . "\\" . $f;
     }
 
+
+    /**
+     * Si $extension == null: devuelve el siguiente archivo del directorio, o false si no hay más.
+     * Si $extension == 'ext': devuelve el siguiente archivo con extensión 'ext' o false si no hay más.
+     */
     public function nextFileName(string $extension = null): bool|string {
         while ($next = $this->d->read()) {
-            if (is_null($extension) or !$next)
-                return $next;  // puede retornar false
-
-            if (pathinfo($next, PATHINFO_EXTENSION) != $extension)
-                continue;
+            if (is_dir($next)) continue;  // no devolver directorios
+            if (is_null($extension)) return $next;  // si no hay restricción de extensión, devolver el archivo.
+            if (pathinfo($next, PATHINFO_EXTENSION) != $extension) continue;  // no devolver archivo si no coincide extensión
+            break; // devolver el siguiente archivo con la extensión solicitada
         }
-        return $next;
+        return $next;  // no hay más archivos, devolver false (o archivo con extensión en caso de break)
     }
 
     public function dirRewind() {
